@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rancher-logo-app
-  namespace: logos
+  name: nginx-app
+  namespace: example
 spec:
   selector:
     matchLabels:
-      name: rancher-logo-backend
+      name: nginx-backend
   template:
     metadata:
       labels:
-        name: rancher-logo-backend
+        name: nginx-backend
     spec:
       containers:
         - name: backend
-          image: ruanbekker/logos:rancher
+          image: nginx
           ports:
             - containerPort: 80
