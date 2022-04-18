@@ -1,0 +1,10 @@
+# Middleware to redirect http to https
+# need to be appropriately annotated in ingress
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
