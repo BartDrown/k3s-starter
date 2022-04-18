@@ -1,4 +1,5 @@
 
+
 # k3s-starter
 ### This repository contains example setup for k3s cluster on vm's from scratch
 #### Along with traefik ingress example and certificate issuer  
@@ -168,4 +169,84 @@ You can check cluster status on your master node executing command:
     sudo kubectl get nodes
 
 After you join your nodes into cluster, command output should be similar to this: 
+
 ![image](https://user-images.githubusercontent.com/40639741/163825254-2b1a6650-8408-4a09-849a-d6de9749a215.png)
+
+## Getting certificates provider
+
+For me, always biggest challenge in cluster configuration was providing automatic certificate issuing (like in plain traefik setup on docker).
+Also I am not big fan of semi-permament solutions like using self signed certificates or periodically opening strange route for certificate renewal. 
+
+That last case can also for sure be big pain if you set up permanent redirect entrypoints from http to https (I do not recommend it, but for a long time it was the way I handled rewriting http request to https).
+
+Firstly, to event think about automatic certificates, we need to add cert-manager, best option is just [official kubernetes cert manager](https://github.com/cert-manager/cert-manager/). 
+You can add it to your cluster like this:
+
+    kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v${cert-manager-version}/cert-manager.yaml
+Don't forget to change cert manager version variable to latest stable release. For now it would be v1.8.0, so whole command would look like this:
+
+    kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/ v1.8.0/cert-manager.yaml
+
+
+As certificate issuer, we'll be using **letsencrypt**, as it allows us to request certificate on demand, for free, for multiple domains and subdomains. 
+To do it properly, we need to create ClusteIssuer resource file, for example letsencrypt.yml, with following content:
+
+    apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    metadata:
+      name: letsencrypt-prod
+    spec:
+      acme:
+        email: ${EMAIL}
+        privateKeySecretRef:
+          name: prod-issuer-account-key
+        server: https://acme-v02.api.letsencrypt.org/directory
+        solvers:
+          - http01:
+              ingress:
+                class: traefik
+            selector: {}
+
+> Do not forget to change email variable to get your domain certificate pinned to you and receive critical notification from Letsencrypt if something went wrong with certificates
+
+Add following resource to your cluster with command: 
+
+    kubectl apply -f letesncrypt.yml
+
+You can check if your ACME account was correctly registered with command:
+
+    kubectl describe clusterissuer cert-manager
+
+Output should look similar to this:
+   ![image](https://user-images.githubusercontent.com/40639741/163836051-526e045f-cc52-409c-9e7b-115b80ff9eca.png)
+
+## Deploying example app
+
+This is flow that we want to archive:
+
+ 1. Client sends request to our server
+ 2. Ingress catches requests and passes it to the service
+ 3. Service examines request and decides to which pod pass it
+ 4. Pod handles the request 
+
+ ```mermaid
+flowchart  LR  
+Client--Ingress-managed<br>load balancer-->Ingress
+subgraph Cluster  
+ Ingress--Routing rules-->Service
+ Service-->Pod1
+ Service-->Pod2  
+ end
+```
+
+Sole reason for Ingress is to serve as entry point that sits in front of multiple services in the cluster.
+For now, we will be using just one service, but it is not uncommon to use that kind of approach. 
+
+Great example for that use case would be distributed api, where depending on the path, traffic would go to different microservices, which could be running in completely different nodes.
+
+
+
+
+We should now create some example application which could process traffic, so lets create deployment.yml file:  
+
+
