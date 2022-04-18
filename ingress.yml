@@ -11,7 +11,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
 spec:
   tls:
-    - secretName: 
+    - secretName: ${SECRET_NAME}
       hosts:
         - ${HOST}
   rules:
